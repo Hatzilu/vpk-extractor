@@ -79,5 +79,9 @@ func WriteVpkFile(file vpk.FileReader, path string) error {
 		}
     }
 	f.Sync()
+	closeErr := f.Close()
+	if closeErr != nil {
+		return closeErr
+	}
 	return nil
 }
