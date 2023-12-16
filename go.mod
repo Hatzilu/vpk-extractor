@@ -1,4 +1,4 @@
-module example/user/hello
+module vpk-extractor
 
 go 1.21.5
 
