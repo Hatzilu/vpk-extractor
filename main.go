@@ -61,23 +61,8 @@ func WriteVpkFile(file vpk.FileReader, path string) error {
 		return err
 	}
 
-    for {
-		buf := make([]byte, 1024)
-        n, err := file.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		if n > 0 {
-			content := buf[:n]
-			// Print the actual content of the file, TODO: uncomment this when we add a --verbose flag
-			// fmt.Println("Buf: ",string(content))
-			f.Write(content)
-		}
-    }
+	io.Copy(f, file)
+
 	f.Sync()
 	closeErr := f.Close()
 	if closeErr != nil {
