@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -12,13 +13,19 @@ import (
 )
 
 func main() {
-    rootPath := `E:\SteamLibrary\steamapps\common\Team Fortress 2\tf\tf2_sound_misc_dir.vpk`	
-	logfile, err  := os.Create("vpk-extractor-"+time.Now().Format("2006-01-02-15-04-05")+".log")
-
+    rootPath, logPath := getFlags()	
+	logfile, err  := os.Create(filepath.Join(logPath,"vpk-extractor-"+time.Now().Format("2006-01-02-15-04-05")+".log"))
+	defer logfile.Close()
+	
 	logger := log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
 
-	defer logfile.Close()
 	logger.SetOutput(logfile)
+	
+	if logPath == "" {
+		logger.SetOutput(logfile)
+		} else {
+		logger.SetOutput(nil)
+	}
 
 	if err != nil {
 		logger.Fatal(err)
@@ -69,4 +76,25 @@ func WriteVpkFile(file vpk.FileReader, path string) error {
 		return closeErr
 	}
 	return nil
+}
+
+func getFlags() (string, string) {
+	path := flag.String("p", "", "the full path to the vpk file.")
+	logPath := flag.String("logPath", "", "the path where the log will be written to, leave blank to disable the creation of a logfile.")
+	
+	flag.Parse()
+
+	fmt.Println("path is", *path)
+
+	if *path == "" {
+		panic("No .vpk file path was specified.")
+	}
+
+	_, err := os.Stat(*path)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return *path, *logPath
 }
