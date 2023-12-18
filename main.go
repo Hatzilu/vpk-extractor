@@ -16,7 +16,7 @@ func main() {
     rootPath, logPath := getFlags()	
 	enableLogging := len(logPath) > 0
 	
-	logger := newCustomLogger(os.Stdout, "INFO: ", log.Ldate|log.Ltime, enableLogging)
+	logger := CustomLogger(os.Stdout, "INFO: ", log.Ldate|log.Ltime, enableLogging)
 	
 	
 	if enableLogging {
@@ -55,8 +55,8 @@ func main() {
 		if dir_err := os.MkdirAll(dir, 0755); dir_err != nil {
 			logger.Fatal(dir_err)
 		}
-		logger.Println("Writing file",path)
-		writeErr := WriteVpkFile(entry, path)
+		logger.Println("Extract file",path)
+		writeErr := ExtractVpkFile(entry, path)
 		if writeErr != nil {
 			logger.Fatal(err)
 		}	
@@ -64,36 +64,10 @@ func main() {
 	logger.Println("Successfully extracted content to "+rootPath)
 }
 
-type customLogger struct {
-	*log.Logger
-	enabled bool
-}
 
 
-func newCustomLogger(out *os.File, prefix string, flag int, enabled bool) *customLogger {
-	return &customLogger{
-		Logger:  log.New(out, prefix, flag),
-		enabled: enabled,
-	}
-}
 
-func (c *customLogger) Println(v ...interface{}) {
-	if c.enabled {
-		c.Logger.Println(v...)
-	}
-	// If logging is disabled, log using fmt instead.
-	fmt.Println(v...)
-}
-
-func (c *customLogger) Fatal(v ...interface{}) {
-	if c.enabled {
-		c.Logger.Fatal(v...)
-	}
-	// If logging is disabled, log using fmt instead.
-	fmt.Println(v...)
-}
-
-func WriteVpkFile(file vpk.FileReader, path string) error {
+func ExtractVpkFile(file vpk.FileReader, path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
