@@ -14,24 +14,30 @@ import (
 
 func main() {
     rootPath, logPath := getFlags()	
-	logfile, err  := os.Create(filepath.Join(logPath,"vpk-extractor-"+time.Now().Format("2006-01-02-15-04-05")+".log"))
-	defer logfile.Close()
+	enableLogging := len(logPath) > 0
 	
-	logger := log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+	logger := newCustomLogger(os.Stdout, "INFO: ", log.Ldate|log.Ltime, enableLogging)
+	
+	
+	if enableLogging {
+		logfile, err  := os.Create(filepath.Join(logPath,"vpk-extractor-"+time.Now().Format("2006-01-02-15-04-05")+".log"))
+	
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 
-	logger.SetOutput(logfile)
-	
-	if logPath == "" {
+		defer logfile.Close()
 		logger.SetOutput(logfile)
-		} else {
+	} else {
 		logger.SetOutput(nil)
 	}
+
+	
+	pak, err := vpk.OpenDir(rootPath)
 
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	pak, err := vpk.OpenDir(rootPath)
 
 	defer pak.Close()
 
@@ -50,17 +56,42 @@ func main() {
 			logger.Fatal(dir_err)
 		}
 		logger.Println("Writing file",path)
-		fmt.Println("Writing file",path)
 		writeErr := WriteVpkFile(entry, path)
 		if writeErr != nil {
 			logger.Fatal(err)
 		}	
 	}
 	logger.Println("Successfully extracted content to "+rootPath)
-	fmt.Println("Successfully extracted content to "+rootPath)
+}
+
+type customLogger struct {
+	*log.Logger
+	enabled bool
 }
 
 
+func newCustomLogger(out *os.File, prefix string, flag int, enabled bool) *customLogger {
+	return &customLogger{
+		Logger:  log.New(out, prefix, flag),
+		enabled: enabled,
+	}
+}
+
+func (c *customLogger) Println(v ...interface{}) {
+	if c.enabled {
+		c.Logger.Println(v...)
+	}
+	// If logging is disabled, log using fmt instead.
+	fmt.Println(v...)
+}
+
+func (c *customLogger) Fatal(v ...interface{}) {
+	if c.enabled {
+		c.Logger.Fatal(v...)
+	}
+	// If logging is disabled, log using fmt instead.
+	fmt.Println(v...)
+}
 
 func WriteVpkFile(file vpk.FileReader, path string) error {
 	f, err := os.Create(path)
@@ -84,7 +115,6 @@ func getFlags() (string, string) {
 	
 	flag.Parse()
 
-	fmt.Println("path is", *path)
 
 	if *path == "" {
 		panic("No .vpk file path was specified.")
@@ -94,6 +124,10 @@ func getFlags() (string, string) {
 
 	if err != nil {
 		panic(err)
+	}
+
+	if filepath.Ext(*path) != ".vpk" {
+		panic("File is not vpk format")
 	}
 
 	return *path, *logPath
