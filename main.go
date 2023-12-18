@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -12,19 +13,30 @@ import (
 )
 
 func main() {
-    rootPath := `E:\SteamLibrary\steamapps\common\Team Fortress 2\tf\tf2_sound_misc_dir.vpk`	
-	logfile, err  := os.Create("vpk-extractor-"+time.Now().Format("2006-01-02-15-04-05")+".log")
+    vpkFilePath, output, logPath := getFlags()	
+	enableLogging := len(logPath) > 0
+	
+	logger := CustomLogger(os.Stdout, "INFO: ", log.Ldate|log.Ltime, enableLogging)
+	
+	
+	if enableLogging {
+		logfile, err  := os.Create(filepath.Join(logPath,"vpk-extractor-"+time.Now().Format("2006-01-02-15-04-05")+".log"))
+	
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 
-	logger := log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
-
-	defer logfile.Close()
-	logger.SetOutput(logfile)
+		defer logfile.Close()
+		logger.SetOutput(logfile)
+	} else {
+		logger.SetOutput(nil)
+	}
+	
+	pak, err := vpk.OpenDir(vpkFilePath)
 
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	pak, err := vpk.OpenDir(rootPath)
 
 	defer pak.Close()
 
@@ -35,27 +47,26 @@ func main() {
 			logger.Fatal(err)
 		}
 		
-		path := filepath.Join("output",file.Filename())
+		path := filepath.Join(output,fileNameWithoutExtension(filepath.Base(vpkFilePath)),file.Filename())
 
 		// Ensure the directories exist by using os.MkdirAll
 		dir := filepath.Dir(path)
 		if dir_err := os.MkdirAll(dir, 0755); dir_err != nil {
 			logger.Fatal(dir_err)
 		}
-		logger.Println("Writing file",path)
-		fmt.Println("Writing file",path)
-		writeErr := WriteVpkFile(entry, path)
+		logger.Println("Extract file",path)
+		writeErr := ExtractVpkFile(entry, path)
 		if writeErr != nil {
 			logger.Fatal(err)
 		}	
 	}
-	logger.Println("Successfully extracted content to "+rootPath)
-	fmt.Println("Successfully extracted content to "+rootPath)
+	logger.Println("Successfully extracted content to "+vpkFilePath)
 }
 
 
 
-func WriteVpkFile(file vpk.FileReader, path string) error {
+
+func ExtractVpkFile(file vpk.FileReader, path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -69,4 +80,33 @@ func WriteVpkFile(file vpk.FileReader, path string) error {
 		return closeErr
 	}
 	return nil
+}
+
+func fileNameWithoutExtension(fileName string) string {
+	return fileName[:len(fileName)-len(filepath.Ext(fileName))]
+}
+
+func getFlags() (string, string, string) {
+	path := flag.String("p", "", "The full path to the vpk file.")
+	output := flag.String("o", ".", "The path to output the files in, leave empty to generate the files in the same directory as the executable.")
+	logPath := flag.String("logPath", "", "The path where the log will be written to, leave blank to disable the creation of a logfile.")
+	
+	flag.Parse()
+
+
+	if *path == "" {
+		panic("No .vpk file path was specified.")
+	}
+
+	_, err := os.Stat(*path)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if filepath.Ext(*path) != ".vpk" {
+		panic("File is not vpk format")
+	}
+
+	return *path, *output, *logPath
 }
