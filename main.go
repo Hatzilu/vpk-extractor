@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-    rootPath, logPath := getFlags()	
+    vpkFilePath, output, logPath := getFlags()	
 	enableLogging := len(logPath) > 0
 	
 	logger := CustomLogger(os.Stdout, "INFO: ", log.Ldate|log.Ltime, enableLogging)
@@ -31,9 +31,8 @@ func main() {
 	} else {
 		logger.SetOutput(nil)
 	}
-
 	
-	pak, err := vpk.OpenDir(rootPath)
+	pak, err := vpk.OpenDir(vpkFilePath)
 
 	if err != nil {
 		logger.Fatal(err)
@@ -48,7 +47,7 @@ func main() {
 			logger.Fatal(err)
 		}
 		
-		path := filepath.Join("output",file.Filename())
+		path := filepath.Join(output,fileNameWithoutExtension(filepath.Base(vpkFilePath)),file.Filename())
 
 		// Ensure the directories exist by using os.MkdirAll
 		dir := filepath.Dir(path)
@@ -61,7 +60,7 @@ func main() {
 			logger.Fatal(err)
 		}	
 	}
-	logger.Println("Successfully extracted content to "+rootPath)
+	logger.Println("Successfully extracted content to "+vpkFilePath)
 }
 
 
@@ -83,9 +82,14 @@ func ExtractVpkFile(file vpk.FileReader, path string) error {
 	return nil
 }
 
-func getFlags() (string, string) {
-	path := flag.String("p", "", "the full path to the vpk file.")
-	logPath := flag.String("logPath", "", "the path where the log will be written to, leave blank to disable the creation of a logfile.")
+func fileNameWithoutExtension(fileName string) string {
+	return fileName[:len(fileName)-len(filepath.Ext(fileName))]
+}
+
+func getFlags() (string, string, string) {
+	path := flag.String("p", "", "The full path to the vpk file.")
+	output := flag.String("o", ".", "The path to output the files in, leave empty to generate the files in the same directory as the executable.")
+	logPath := flag.String("logPath", "", "The path where the log will be written to, leave blank to disable the creation of a logfile.")
 	
 	flag.Parse()
 
@@ -104,5 +108,5 @@ func getFlags() (string, string) {
 		panic("File is not vpk format")
 	}
 
-	return *path, *logPath
+	return *path, *output, *logPath
 }
